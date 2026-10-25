@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ajman Department of Finance · Voice Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="banner">🎧 Please use headphones, or tap 🎙️ to mute while the agent talks. Otherwise it hears itself and interrupts.</div>
+
+  <header>
+    <h1>Ajman Department of Finance <span>دائرة المالية - عجمان · Voice Assistant</span></h1>
+    <div class="controls">
+      <span id="status" class="pill">idle</span>
+      <div class="meter"><div id="level"></div></div>
+      <button id="end" class="end" hidden>End call</button>
+      <button id="mic" class="mic" aria-label="Start call, or mute and unmute">🎙️</button>
+    </div>
+  </header>
+
+  <div id="error" class="error" hidden></div>
+
+  <main>
+    <section class="panel">
+      <h2>Conversation</h2>
+      <div id="transcript" class="transcript"></div>
+      <form id="text-form">
+        <input id="text" dir="auto" placeholder="Type your question here… اكتب سؤالك هنا" autocomplete="off">
+        <button>Send</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Assistant activity</h2>
+      <div id="tools" class="tools"></div>
+      <h2>Callback requests</h2>
+      <ul id="callbacks" class="bookings"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
