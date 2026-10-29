@@ -247,6 +247,7 @@ function connect(c) {
 
 function handleMessage(c, data) {
   if (typeof data !== "string") {
+    c.replyOpen = true;
     setAgentPlaying(c, true); // guard the mic before the first sample reaches the speakers
     return c.player.port.postMessage(data, [data]);
   }
@@ -254,9 +255,10 @@ function handleMessage(c, data) {
     const event = JSON.parse(data);
     switch (event.type) {
       case "transcript": return caption(event.role, event.text);
-      case "turn_complete": c.lastRole = null; return;
+      case "turn_complete": c.lastRole = null; c.replyOpen = false; return;
       case "interrupt":
         c.interruptions = (c.interruptions || 0) + 1;
+        c.replyOpen = false;
         c.player.port.postMessage("flush");
         c.lastRole = null;
         return;
@@ -340,6 +342,7 @@ function cleanup(c) {
 
 function setAgentPlaying(c, playing) {
   if (c.agentPlaying === playing) return;
+  if (!playing && c.replyOpen) c.gaps = (c.gaps || 0) + 1; // speakers ran dry before the reply finished
   c.agentPlaying = playing;
   c.capture?.port.postMessage({ agentSpeaking: playing });
   updateLiveStatus();
@@ -351,7 +354,7 @@ function debugLine(c, d) {
   c.debugAt = now;
   $("hint").textContent =
     `mic ${d.raw.toFixed(3)} · ${d.guarding ? (d.pass ? "guard OPEN" : "guard closed") : "open"} · ` +
-    `filter ${body.dataset.denoise} · interruptions ${c.interruptions || 0}`;
+    `filter ${body.dataset.denoise} · interruptions ${c.interruptions || 0} · gaps ${c.gaps || 0}`;
 }
 
 function updateLiveStatus() {

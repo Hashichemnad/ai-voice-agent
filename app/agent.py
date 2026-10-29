@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import time
 
 from google import genai
 
@@ -33,14 +34,24 @@ async def run_agent(bridge: BrowserBridge, lang: str = "en") -> None:
             await session.send_tool_response(function_responses=await registry.run(tool_call))
 
         async def receive_replies():
+            last_audio = None  # time of the previous audio chunk in this reply
             while True:  # receive() ends after every turn
                 async for msg in session.receive():
+                    if msg.data:
+                        now = time.monotonic()
+                        if last_audio and now - last_audio > 0.35:
+                            # Gaps here come from Gemini itself; none here but choppy audio = hosting/network.
+                            log.info("Gemini paused %.2f s in the middle of a reply", now - last_audio)
+                        last_audio = now
                     await bridge.play(msg.data)
+                    if msg.server_content and (msg.server_content.turn_complete or msg.server_content.interrupted):
+                        last_audio = None
                     if msg.server_content and msg.server_content.interrupted:
                         # If this shows up in the logs while nobody spoke, the mic is hearing the speakers (echo).
                         log.info("Hamdan was interrupted by audio from the caller's side")
                         await bridge.interrupt()
                     if msg.tool_call:
+                        last_audio = None  # a pause while a tool runs is expected
                         tg.create_task(answer(msg.tool_call))  # keep audio flowing while tools run
                     await bridge.transcript(msg)
 

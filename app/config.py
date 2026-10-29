@@ -29,7 +29,7 @@ class Settings:
     max_concurrent_calls: int = int(os.getenv("MAX_CONCURRENT_CALLS", "3"))
     max_call_minutes: int = int(os.getenv("MAX_CALL_MINUTES", "10"))
     # Silence (ms) that ends the caller's turn. 500-1000; higher = fewer interruptions, slower replies.
-    silence_ms: int = int(os.getenv("SILENCE_MS", "800"))
+    silence_ms: int = int(os.getenv("SILENCE_MS", "700"))
     # Websites allowed to embed the widget, e.g. "https://ajmandof.ae,https://www.ajmandof.ae". Empty = any.
     allowed_embed_origins: tuple[str, ...] = field(default_factory=lambda: env_list("ALLOWED_EMBED_ORIGINS"))
     # Optional: each callback request is POSTed here as JSON (Power Automate, Zapier, Teams, your CRM...).
@@ -68,12 +68,12 @@ def build_live_config(settings: Settings, registry=None, lang: str = "en") -> ty
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         realtime_input_config=types.RealtimeInputConfig(
-            # Gemini's default turn detection (the setup that worked best in testing). Raise SILENCE_MS
-            # if Hamdan answers while callers are still mid-sentence; lower it if he feels slow.
+            # Same as the original working setup (700 ms). Raise SILENCE_MS if Hamdan answers while
+            # callers are still mid-sentence; lower it if he feels slow.
             automatic_activity_detection=types.AutomaticActivityDetection(silence_duration_ms=settings.silence_ms)
         ),
-        proactivity=types.ProactivityConfig(proactive_audio=True) if settings.proactive_audio else None,
         tools=[types.Tool(function_declarations=registry.declarations)] if registry else None,
-        # Keeps long calls going past the model's context limit.
-        context_window_compression=types.ContextWindowCompressionConfig(sliding_window=types.SlidingWindow()),
+        # Matches the original working setup. context_window_compression is deliberately left off: it is
+        # the main suspect for Hamdan's voice arriving in broken pieces.
+        **({"proactivity": types.ProactivityConfig(proactive_audio=True)} if settings.proactive_audio else {}),
     )
