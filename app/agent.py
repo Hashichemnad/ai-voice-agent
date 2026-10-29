@@ -37,6 +37,8 @@ async def run_agent(bridge: BrowserBridge, lang: str = "en") -> None:
                 async for msg in session.receive():
                     await bridge.play(msg.data)
                     if msg.server_content and msg.server_content.interrupted:
+                        # If this shows up in the logs while nobody spoke, the mic is hearing the speakers (echo).
+                        log.info("Hamdan was interrupted by audio from the caller's side")
                         await bridge.interrupt()
                     if msg.tool_call:
                         tg.create_task(answer(msg.tool_call))  # keep audio flowing while tools run

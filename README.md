@@ -41,6 +41,8 @@ Paste this before `</body>` on every page that should show the character:
 | `data-lang="ar"` / `"en"` | Fixes the language. By default it follows the page (`<html lang="ar">` or `/ar/` in the URL). |
 | `data-position="left"` | Puts the character in the bottom-left corner. |
 | `data-greeting="off"` | Hides the "Talk to Hamdan" bubble. |
+| `data-noise-filter="on"` | Adds the extra neural noise filter (RNNoise). Off by default; try it if callers are often in noisy places. |
+| `data-echo-guard="off"` | Turns off the echo guard. Only sensible if all callers wear headphones. |
 
 Any button on the site can open the widget: `<button onclick="AjmanDofVoice.open()">Talk to us</button>`.
 A full-page version is at `/call.html` (add `?lang=ar` for Arabic), which is useful for a QR code or a link in an email.
@@ -64,20 +66,27 @@ A full-page version is at `/call.html` (add `?lang=ar` for Arabic), which is use
 | `MODEL` | `gemini-3.8-live` | Gemini Live model. |
 | `MAX_CONCURRENT_CALLS` | `3` | Further callers hear "all lines are busy". Raise it on a paid key. |
 | `MAX_CALL_MINUTES` | `10` | Hamdan wraps up politely a minute before the limit. |
+| `SILENCE_MS` | `800` | Pause (ms) that ends the caller's turn. Raise it if Hamdan answers while callers are still talking. |
 | `ALLOWED_EMBED_ORIGINS` | empty (any site) | Websites allowed to embed the widget. |
 | `CALLBACK_WEBHOOK_URL` | empty | Callback requests are POSTed here as JSON, with a ready-made `text` line for Teams or email flows. |
 | `ADMIN_TOKEN` | empty | Enables `/admin/callbacks?token=...`, a list of callback requests since the last restart. |
 | `PROACTIVE_AUDIO` | `false` | Lets the model ignore speech not addressed to it. Try it for very noisy places. |
 
-## How noise is handled
+## How noise and echo are handled
 
-1. **In the browser:** the microphone's built-in echo cancellation and noise suppression, then **RNNoise**, a
-   neural noise filter (in `static/vendor/rnnoise`, MIT licence) that removes fans, traffic, keyboards and crowd hum.
-2. **Echo guard:** while Hamdan is speaking, quiet sound from the caller's side is muted, so his own voice coming out of
-   the speakers can't interrupt him. Clear speech from the caller still gets through, so they can always cut in.
-3. **On the server:** turn detection is set to ignore short noises, and only speech that lasts at least 200 ms starts a turn.
-4. **In the persona:** Hamdan ignores background conversations, asks the caller to repeat instead of guessing,
-   and offers the keyboard button if the line stays unclear.
+1. **Browser noise suppression and echo cancellation** are always on.
+2. **Echo guard:** while Hamdan is speaking, and for half a second afterwards, the mic sends silence, so his own
+   voice coming out of the speakers can't make him stop mid-sentence. If the caller speaks clearly louder than the
+   echo for 120 ms, they still get through and can cut in.
+3. **Optional neural noise filter (RNNoise):** turn it on with `data-noise-filter="on"`.
+4. **The persona** tells Hamdan to ignore background conversations, ask callers to repeat instead of guessing,
+   and offer the keyboard button if the line stays unclear.
+
+### Troubleshooting a call
+
+Open `/call.html?debug=1` (add `&nf=on` to include the noise filter). Under the status line you'll see the mic
+level, whether the echo guard is open or closed, and how many times Hamdan was interrupted. In the Render logs,
+"Hamdan was interrupted by audio from the caller's side" while nobody spoke means the mic is hearing the speakers.
 
 ## Before going live
 

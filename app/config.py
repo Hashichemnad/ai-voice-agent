@@ -28,6 +28,8 @@ class Settings:
     # Protect your Gemini quota: calls at once, and minutes per call.
     max_concurrent_calls: int = int(os.getenv("MAX_CONCURRENT_CALLS", "3"))
     max_call_minutes: int = int(os.getenv("MAX_CALL_MINUTES", "10"))
+    # Silence (ms) that ends the caller's turn. 500-1000; higher = fewer interruptions, slower replies.
+    silence_ms: int = int(os.getenv("SILENCE_MS", "800"))
     # Websites allowed to embed the widget, e.g. "https://ajmandof.ae,https://www.ajmandof.ae". Empty = any.
     allowed_embed_origins: tuple[str, ...] = field(default_factory=lambda: env_list("ALLOWED_EMBED_ORIGINS"))
     # Optional: each callback request is POSTed here as JSON (Power Automate, Zapier, Teams, your CRM...).
@@ -66,14 +68,9 @@ def build_live_config(settings: Settings, registry=None, lang: str = "en") -> ty
         input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         realtime_input_config=types.RealtimeInputConfig(
-            automatic_activity_detection=types.AutomaticActivityDetection(
-                # LOW start sensitivity: short noises (doors, keyboards, coughs) don't count as speech.
-                start_of_speech_sensitivity=types.StartSensitivity.START_SENSITIVITY_LOW,
-                # HIGH end sensitivity: the turn still ends promptly when background hum continues.
-                end_of_speech_sensitivity=types.EndSensitivity.END_SENSITIVITY_HIGH,
-                prefix_padding_ms=200,  # Speech must last 200 ms before it can start a turn.
-                silence_duration_ms=800,
-            )
+            # Gemini's default turn detection (the setup that worked best in testing). Raise SILENCE_MS
+            # if Hamdan answers while callers are still mid-sentence; lower it if he feels slow.
+            automatic_activity_detection=types.AutomaticActivityDetection(silence_duration_ms=settings.silence_ms)
         ),
         proactivity=types.ProactivityConfig(proactive_audio=True) if settings.proactive_audio else None,
         tools=[types.Tool(function_declarations=registry.declarations)] if registry else None,

@@ -4,6 +4,13 @@
 const params = new URLSearchParams(location.search);
 const LANG = params.get("lang") === "ar" ? "ar" : "en";
 const EMBED = params.get("embed") === "1" && window.parent !== window;
+// Audio options, for testing on different devices (the widget passes these through):
+//   nf=on            extra neural noise filter (RNNoise) on top of the browser's own noise suppression
+//   echoguard=off    let all mic audio through while Hamdan talks (only sensible with headphones)
+//   debug=1          show live audio diagnostics under the status line
+const NOISE_FILTER = params.get("nf") === "on";
+const ECHO_GUARD = params.get("echoguard") !== "off";
+const DEBUG = params.get("debug") === "1";
 const RING_MIN_MS = 2200; // let at least one ring play so the call feels like a call
 const CONNECT_TIMEOUT_MS = 30000;
 
@@ -173,9 +180,9 @@ async function setupAudio(c) {
 
   // Mic -> RNNoise (removes steady and background noise) -> 16 kHz capture with echo guard.
   const source = captureCtx.createMediaStreamSource(stream);
-  const capture = new AudioWorkletNode(captureCtx, "capture-processor");
+  const capture = new AudioWorkletNode(captureCtx, "capture-processor", { processorOptions: { echoGuard: ECHO_GUARD } });
   c.capture = capture;
-  const denoiser = await createDenoiser(captureCtx);
+  const denoiser = NOISE_FILTER ? await createDenoiser(captureCtx) : null;
   body.dataset.denoise = denoiser ? "on" : "off"; // handy when troubleshooting a caller's setup
   if (denoiser) {
     source.connect(denoiser).connect(capture);
@@ -186,6 +193,7 @@ async function setupAudio(c) {
   capture.port.onmessage = ({ data }) => {
     if (c.live && !c.muted && c.ws?.readyState === WebSocket.OPEN) c.ws.send(data.pcm);
     c.userLevel = c.muted ? 0 : data.level;
+    if (DEBUG) debugLine(c, data);
   };
 
   c.player = new AudioWorkletNode(playCtx, "playback-processor");
@@ -194,8 +202,7 @@ async function setupAudio(c) {
     if (data === "done") return endCall("agent"); // the goodbye has finished playing
     c.agentLevel = data.level;
     if (data.playing !== c.agentPlaying) {
-      c.agentPlaying = data.playing;
-      capture.port.postMessage({ agentSpeaking: data.playing });
+      setAgentPlaying(c, data.playing);
       updateLiveStatus();
     }
   };
@@ -239,13 +246,20 @@ function connect(c) {
 }
 
 function handleMessage(c, data) {
-  if (typeof data !== "string") return c.player.port.postMessage(data, [data]);
+  if (typeof data !== "string") {
+    setAgentPlaying(c, true); // guard the mic before the first sample reaches the speakers
+    return c.player.port.postMessage(data, [data]);
+  }
   {
     const event = JSON.parse(data);
     switch (event.type) {
       case "transcript": return caption(event.role, event.text);
       case "turn_complete": c.lastRole = null; return;
-      case "interrupt": c.player.port.postMessage("flush"); c.lastRole = null; return;
+      case "interrupt":
+        c.interruptions = (c.interruptions || 0) + 1;
+        c.player.port.postMessage("flush");
+        c.lastRole = null;
+        return;
       case "tool":
         c.toolsRunning = Math.max(0, c.toolsRunning + (event.phase === "start" ? 1 : -1));
         return updateLiveStatus();
@@ -323,6 +337,22 @@ function cleanup(c) {
 }
 
 // ---------- During the call ----------
+
+function setAgentPlaying(c, playing) {
+  if (c.agentPlaying === playing) return;
+  c.agentPlaying = playing;
+  c.capture?.port.postMessage({ agentSpeaking: playing });
+  updateLiveStatus();
+}
+
+function debugLine(c, d) {
+  const now = performance.now();
+  if (now - (c.debugAt || 0) < 200) return;
+  c.debugAt = now;
+  $("hint").textContent =
+    `mic ${d.raw.toFixed(3)} · ${d.guarding ? (d.pass ? "guard OPEN" : "guard closed") : "open"} · ` +
+    `filter ${body.dataset.denoise} · interruptions ${c.interruptions || 0}`;
+}
 
 function updateLiveStatus() {
   const c = call;

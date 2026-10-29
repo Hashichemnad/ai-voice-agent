@@ -8,6 +8,8 @@
  *   data-lang="auto|en|ar"     Language of the widget. "auto" (default) follows the page's <html lang>.
  *   data-position="right|left" Corner for the character. Default: right.
  *   data-greeting="on|off"     Show the "Need help?" bubble a few seconds after the page loads. Default: on.
+ *   data-noise-filter="on|off" Extra neural noise filter (RNNoise) for noisy places. Default: off.
+ *   data-echo-guard="on|off"   Stop the assistant hearing itself through speakers. Default: on.
  *
  * Open the panel from your own button or link:
  *   <button onclick="AjmanDofVoice.open()">Talk to us</button>
@@ -26,7 +28,10 @@
   var GAP = 12, CLOSED = 112;
 
   var frame = document.createElement("iframe");
-  frame.src = new URL("call.html?embed=1&lang=" + lang + "&pos=" + side, base).href;
+  var extra = "";
+  if (opt("noise-filter", "off") === "on") extra += "&nf=on";
+  if (opt("echo-guard", "on") === "off") extra += "&echoguard=off";
+  frame.src = new URL("call.html?embed=1&lang=" + lang + "&pos=" + side + extra, base).href;
   frame.title = lang === "ar" ? "المساعد الصوتي لدائرة المالية بعجمان" : "Ajman Department of Finance voice assistant";
   frame.allow = "microphone; autoplay";
   frame.setAttribute("allowtransparency", "true");
