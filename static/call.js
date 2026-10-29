@@ -322,7 +322,7 @@ function cleanup(c) {
   body.classList.remove("in-call");
   clearTimeout(c.timeout);
   clearInterval(c.clock);
-  cancelAnimationFrame(c.raf);
+  clearInterval(c.anim);
   c.ring?.stop();
   if (c.ws) { c.ws.onclose = null; c.ws.close(); }
   c.stream?.getTracks().forEach((t) => t.stop());
@@ -332,7 +332,7 @@ function cleanup(c) {
   $("again").hidden = false;
   $("text-form").hidden = true;
   $("keyboard").setAttribute("aria-pressed", "false");
-  body.style.setProperty("--user", 0);
+  document.querySelector(".avatar-wrap").style.setProperty("--user", 0);
   document.querySelectorAll(".stage-avatar svg").forEach((s) => s.style.setProperty("--mouth", 0));
 }
 
@@ -409,17 +409,20 @@ function caption(role, text) {
 }
 
 // Drive the avatar: mouth follows the assistant's voice, the gold glow follows the caller's.
+// Kept deliberately light (about 20 updates a second, only on the stage) because this thread also
+// feeds Hamdan's voice to the speakers: a busy page here means choppy audio.
 function animate(c) {
-  let mouth = 0, user = 0;
-  const avatars = document.querySelectorAll(".stage-avatar svg, .launcher-avatar svg");
-  const tick = () => {
-    mouth += (Math.min(1, (c.agentLevel || 0) * 9) - mouth) * 0.45;
-    user += (Math.min(1, (c.userLevel || 0) * 7) - user) * 0.3;
-    avatars.forEach((s) => s.style.setProperty("--mouth", mouth.toFixed(3)));
-    body.style.setProperty("--user", c.live ? user.toFixed(3) : 0);
-    c.raf = requestAnimationFrame(tick);
-  };
-  tick();
+  let mouth = 0, user = 0, lastMouth = -1, lastUser = -1;
+  const svg = document.querySelector(".stage-avatar svg");
+  const wrap = document.querySelector(".avatar-wrap");
+  c.anim = setInterval(() => {
+    if (!panelOpen || document.hidden) return;
+    mouth += (Math.min(1, (c.agentLevel || 0) * 9) - mouth) * 0.6;
+    user += (Math.min(1, (c.live ? c.userLevel || 0 : 0) * 7) - user) * 0.5;
+    const m = Math.round(mouth * 10) / 10, u = Math.round(user * 10) / 10;
+    if (m !== lastMouth && svg) svg.style.setProperty("--mouth", (lastMouth = m));
+    if (u !== lastUser) wrap.style.setProperty("--user", (lastUser = u));
+  }, 50);
 }
 
 function elapsed(c) {

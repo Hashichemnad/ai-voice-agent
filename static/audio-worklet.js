@@ -86,11 +86,20 @@ class CaptureProcessor extends AudioWorkletProcessor {
   }
 }
 
+// Jitter buffer: each reply starts once ~200 ms of audio has arrived, and if the network briefly falls
+// behind mid-sentence it waits for ~120 ms more instead of playing a stream of tiny broken pieces.
+const PREBUFFER = 4800; // 200 ms at 24 kHz
+const REBUFFER = 2880; // 120 ms
+
 class PlaybackProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.queue = [];
     this.offset = 0;
+    this.queued = 0; // samples waiting to play
+    this.buffering = true;
+    this.target = PREBUFFER;
+    this.waited = 0;
     this.hangup = false;
     this.sum = 0;
     this.count = 0;
@@ -98,32 +107,50 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       if (data === "flush") {
         this.queue = [];
         this.offset = 0;
+        this.queued = 0;
+        this.buffering = true;
+        this.target = PREBUFFER;
       } else if (data === "hangup") {
         this.hangup = true;
       } else {
-        this.queue.push(Float32Array.from(new Int16Array(data), (s) => s / 0x8000));
+        const chunk = Float32Array.from(new Int16Array(data), (s) => s / 0x8000);
+        this.queue.push(chunk);
+        this.queued += chunk.length;
       }
     };
   }
 
   process(_, [output]) {
     const out = output[0];
+    if (this.buffering) {
+      // Start when enough is buffered, or when the last few words of a reply have waited long enough.
+      if (this.queued > 0) this.waited += out.length;
+      if (this.queued >= this.target || (this.queued > 0 && this.waited >= this.target)) {
+        this.buffering = false;
+        this.waited = 0;
+      }
+    }
     for (let i = 0; i < out.length; i++) {
-      const head = this.queue[0];
+      const head = this.buffering ? null : this.queue[0];
       if (!head) { out[i] = 0; continue; }
       const s = head[this.offset++];
       out[i] = s;
       this.sum += s * s;
+      this.queued--;
       if (this.offset === head.length) { this.queue.shift(); this.offset = 0; }
+    }
+    if (!this.buffering && this.queued === 0) {
+      this.buffering = true; // ran dry: re-buffer briefly if more of this reply is still coming
+      this.target = REBUFFER;
     }
     // Report a level ~every 50 ms (and whether audio is still queued) for the avatar and echo guard.
     this.count += out.length;
     if (this.count >= 1200) {
-      this.port.postMessage({ level: Math.sqrt(this.sum / this.count), playing: this.queue.length > 0 });
+      this.port.postMessage({ level: Math.sqrt(this.sum / this.count), playing: this.queued > 0 });
       this.sum = 0;
       this.count = 0;
     }
-    if (this.hangup && !this.queue.length) {
+    if (this.hangup && this.queued === 0) {
       this.hangup = false;
       this.port.postMessage("done");
     }

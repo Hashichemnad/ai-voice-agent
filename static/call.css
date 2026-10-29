@@ -94,7 +94,8 @@ body[data-state="calling"] .r3 { animation-delay: 1.6s; }
   position: absolute; inset: -6px; border-radius: 50%;
   background: rgba(199, 154, 59, .45);
   transform: scale(calc(1 + var(--user, 0) * .14)); opacity: calc(var(--user, 0) * 1.4);
-  transition: transform .08s linear, opacity .08s linear;
+  transition: transform .1s linear, opacity .1s linear;
+  will-change: transform, opacity;
 }
 
 h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: .01em; }
