@@ -1,0 +1,26 @@
+# Render Blueprint: Render reads this file and fills in the service settings for you.
+services:
+  - type: web
+    name: ajmandof-voice
+    runtime: python
+    plan: free
+    buildCommand: pip install uv && uv sync --frozen
+    startCommand: uv run uvicorn app.server:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: GEMINI_API_KEY
+        sync: false # you'll be asked for it; it is never stored in the code
+      - key: VOICE
+        value: Charon
+      - key: MAX_CONCURRENT_CALLS
+        value: "3"
+      - key: MAX_CALL_MINUTES
+        value: "10"
+      - key: ALLOWED_EMBED_ORIGINS
+        value: https://ajmandof.ae,https://www.ajmandof.ae
+      - key: CALLBACK_WEBHOOK_URL
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false

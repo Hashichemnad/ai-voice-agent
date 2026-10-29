@@ -21,7 +21,7 @@ JSON_TYPES = {str: "string", int: "integer", float: "number", bool: "boolean"}
 
 
 class ToolError(Exception):
-    """A problem the agent should explain to the guest, e.g. 'check-out is before check-in'."""
+    """A problem the agent should explain to the caller, e.g. 'that phone number looks too short'."""
 
 
 def tool(fn: Callable | None = None, *, blocking: bool = True) -> Callable:

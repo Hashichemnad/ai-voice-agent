@@ -3,42 +3,54 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ajman Department of Finance · Voice Assistant</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Hamdan voice assistant · setup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --teal: #0E4F55; --gold: #C79A3B; --ink: #12262B; --muted: #5E7378; --line: #DCE4E5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #F5F7F7; color: var(--ink); font: 17px/1.6 "IBM Plex Sans Arabic", "Segoe UI", system-ui, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 56px 20px 160px; }
+    h1 { font-size: 34px; line-height: 1.2; margin: 0 0 12px; color: var(--teal); }
+    h2 { font-size: 20px; margin: 40px 0 8px; }
+    p, li { color: #2E4247; }
+    pre { background: var(--ink); color: #E8F0F0; padding: 16px 18px; border-radius: 12px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+    code { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
+    p code, li code { background: #E6EDEE; padding: 1px 6px; border-radius: 6px; font-size: .9em; }
+    a { color: var(--teal); }
+    .try { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+    .try a, .try button { font: inherit; font-size: 16px; padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--teal); color: var(--teal); background: #fff; text-decoration: none; cursor: pointer; }
+    .try button { background: var(--teal); color: #fff; }
+  </style>
 </head>
 <body>
-  <div class="banner">🎧 Please use headphones, or tap 🎙️ to mute while the agent talks. Otherwise it hears itself and interrupts.</div>
-
-  <header>
-    <h1>Ajman Department of Finance <span>دائرة المالية - عجمان · Voice Assistant</span></h1>
-    <div class="controls">
-      <span id="status" class="pill">idle</span>
-      <div class="meter"><div id="level"></div></div>
-      <button id="end" class="end" hidden>End call</button>
-      <button id="mic" class="mic" aria-label="Start call, or mute and unmute">🎙️</button>
-    </div>
-  </header>
-
-  <div id="error" class="error" hidden></div>
-
   <main>
-    <section class="panel">
-      <h2>Conversation</h2>
-      <div id="transcript" class="transcript"></div>
-      <form id="text-form">
-        <input id="text" dir="auto" placeholder="Type your question here… اكتب سؤالك هنا" autocomplete="off">
-        <button>Send</button>
-      </form>
-    </section>
+    <h1>Hamdan is running</h1>
+    <p>This is the voice assistant for the Ajman Department of Finance. Tap the character in the bottom corner to try a call, exactly as visitors to your website will see it.</p>
+    <div class="try">
+      <button type="button" onclick="AjmanDofVoice.open()">Open the widget</button>
+      <a href="call.html">Full-page call (English)</a>
+      <a href="call.html?lang=ar">Full-page call (Arabic)</a>
+    </div>
 
-    <section class="panel">
-      <h2>Assistant activity</h2>
-      <div id="tools" class="tools"></div>
-      <h2>Callback requests</h2>
-      <ul id="callbacks" class="bookings"></ul>
-    </section>
+    <h2>Add it to your website</h2>
+    <p>Paste this line before <code>&lt;/body&gt;</code> on every page where the character should appear:</p>
+    <pre><code id="snippet"></code></pre>
+    <p>The widget follows the page language automatically: Arabic pages (<code>&lt;html lang="ar"&gt;</code> or a URL containing <code>/ar/</code>) get the Arabic widget and an Arabic greeting.</p>
+
+    <h2>Options</h2>
+    <ul>
+      <li><code>data-lang="ar"</code> or <code>"en"</code> fixes the language instead of following the page.</li>
+      <li><code>data-position="left"</code> puts the character in the bottom-left corner.</li>
+      <li><code>data-greeting="off"</code> hides the "Talk to Hamdan" bubble.</li>
+      <li>Any button on your site can open the widget with <code>onclick="AjmanDofVoice.open()"</code>.</li>
+    </ul>
   </main>
-
-  <script src="app.js"></script>
+  <script>
+    document.getElementById("snippet").textContent =
+      '<script src="' + location.origin + '/widget.js" defer><\/script>';
+  </script>
+  <script src="widget.js" defer></script>
 </body>
 </html>

@@ -1,110 +1,87 @@
-# The Saffron Palm: a bilingual voice receptionist on the Gemini Live API
+# Hamdan: voice assistant for the Ajman Department of Finance
 
-This repo is a live-coding workshop for GDG DevFest Dubai. Layla answers the phone at the fictional **Saffron Palm Hotel, Dubai Marina**, in English or Arabic. She checks availability, books rooms, answers questions and logs room service.
+Visitors tap a character on your website, hear a short ring, and Hamdan greets them in Arabic or English.
+He answers questions about the Department's services, fees, Tawreed, Ajman Sadad and working hours,
+and takes callback requests. He stays strictly on Department of Finance topics.
 
-The whole Live API loop is **20 lines**, in one fenced block in [app/agent.py](app/agent.py). Everything else is scaffolding you can reuse.
+Built on the Gemini Live API, with FastAPI on the server and plain JavaScript in the browser.
 
-## Quickstart
+## Run it on your computer
 
-You need [uv](https://docs.astral.sh/uv/) and a Gemini API key from [AI Studio](https://aistudio.google.com/apikey).
-
-```bash
+```
 uv sync
-cp .env.example .env        # then paste your GEMINI_API_KEY into .env
+cp .env.example .env        # Windows: copy .env.example .env
+# put your GEMINI_API_KEY in .env
+uv run python scripts/smoke_test.py      # optional: checks your key and model
 uv run uvicorn app.server:app
 ```
 
-Open http://localhost:8000, **put on headphones**, press the mic and ask: *"Do you have a double room next Friday?"*
+Open http://localhost:8000 and tap the character in the bottom-right corner.
 
-Before a talk, run `uv run python scripts/smoke_test.py` on the venue Wi-Fi. It opens a real session and checks that the model calls `check_availability`.
+## Put it on Render
 
-## How it works
+1. Push this folder to a GitHub repository.
+2. In Render choose **New → Blueprint** and pick the repository. Render reads `render.yaml` and asks for
+   `GEMINI_API_KEY` (and optionally `CALLBACK_WEBHOOK_URL` and `ADMIN_TOKEN`).
+3. Before going live, check `ALLOWED_EMBED_ORIGINS` in the Render dashboard. Only these websites can show the
+   widget. Clear it while testing on other sites.
 
-```mermaid
-flowchart LR
-    Mic[Browser mic<br/>AudioWorklet 16 kHz PCM] -- binary WS --> Bridge
-    Text[Text box] -- JSON WS --> Bridge
-    subgraph Server [FastAPI, your API key stays here]
-        Bridge[BrowserBridge<br/>app/bridge.py] <--> Agent[run_agent<br/>app/agent.py]
-        Agent -- tool_call --> Registry[ToolRegistry<br/>app/tools/registry.py]
-        Registry --> Tools[hotel tools<br/>app/tools/hotel.py]
-    end
-    Agent <-- Live API WebSocket --> Gemini[(gemini-3.8-live)]
-    Bridge -- 24 kHz PCM, transcripts, tool cards --> UI[Speakers + panels]
+An existing Render web service keeps working. Just redeploy it with the new code.
+
+## Add it to the website
+
+Paste this before `</body>` on every page that should show the character:
+
+```html
+<script src="https://YOUR-APP.onrender.com/widget.js" defer></script>
 ```
 
-The fenced block does four things:
-1. It opens `client.aio.live.connect(...)` with `build_live_config(...)`, which sets the voice, persona, transcription, VAD and tools.
-2. It forwards `bridge.inputs()`, which can be mic audio or typed text, into `session.send_realtime_input(**item)`.
-3. It loops over `session.receive()` and does the following with each message:
-   - plays `msg.data` (the agent's audio)
-   - flushes playback on `interrupted`
-   - forwards transcripts to the browser
+| Option | What it does |
+|---|---|
+| `data-lang="ar"` / `"en"` | Fixes the language. By default it follows the page (`<html lang="ar">` or `/ar/` in the URL). |
+| `data-position="left"` | Puts the character in the bottom-left corner. |
+| `data-greeting="off"` | Hides the "Talk to Hamdan" bubble. |
 
-   `receive()` ends after every turn, which is why it sits inside `while True`.
-4. It answers each `tool_call` with `session.send_tool_response(...)`. This runs as a task, because `gemini-3.8-live` calls functions **asynchronously** by default and the agent keeps talking while `check_availability` takes its 2 seconds.
+Any button on the site can open the widget: `<button onclick="AjmanDofVoice.open()">Talk to us</button>`.
+A full-page version is at `/call.html` (add `?lang=ar` for Arabic), which is useful for a QR code or a link in an email.
 
-The google-genai SDK is pinned to `google-genai==2.31.0`.
+## Change what Hamdan knows and says
 
-## Workshop flow (about 40 minutes)
+| File | What it controls |
+|---|---|
+| `app/data/ajmandof.json` | Services, fees, documents, steps, FAQ, contact details. Edit this when the website changes; no code needed. |
+| `app/persona/ajmandof.md` | Personality, greeting, scope, rules for noisy calls, privacy and callbacks. |
+| `app/tools/ajmandof.py` | What he can do: look up services, search the FAQ, log a callback. |
+| `static/hamdan.svg` | The character. |
+| `static/call.css` | Colours (top of the file), fonts and layout of the call panel. |
 
-Attendees can either type along in `app/agent.py` or start from the stub. `uv run python scripts/make_starter.py` writes `starter/agent.py`, and `cp starter/agent.py app/agent.py` puts it in place. Use `git checkout app/agent.py` to get the solution back.
+## Settings (environment variables)
 
-If you fall behind, copy the checkpoint over `app/agent.py`, e.g. `cp checkpoints/step3_tools.py app/agent.py`.
-
-| Time | Checkpoint | What you add |
+| Name | Default | Purpose |
 |---|---|---|
-| 0–5 min | — | Run the finished demo and walk through the architecture |
-| 5–15 min | [step1_talk](checkpoints/step1_talk.py) | `connect`, `send_realtime_input`, the `receive()` loop and `bridge.play`. Now you can talk to it |
-| 15–20 min | [step2_persona](checkpoints/step2_persona.py) | No code. Edit [receptionist.md](app/persona/receptionist.md) and `VOICE` in `.env`, then try Arabic |
-| 20–32 min | [step3_tools](checkpoints/step3_tools.py) | Pass the registry to the config and answer `tool_call`s. Watch the Front Desk panel |
-| 32–40 min | [step4_bargein](checkpoints/step4_bargein.py) | `interrupted` → `bridge.interrupt()`, plus `bridge.transcript(msg)` |
+| `GEMINI_API_KEY` | none (required) | Your Gemini key. |
+| `VOICE` | `Charon` | Voice of the assistant (`Kore` is a female voice). |
+| `MODEL` | `gemini-3.8-live` | Gemini Live model. |
+| `MAX_CONCURRENT_CALLS` | `3` | Further callers hear "all lines are busy". Raise it on a paid key. |
+| `MAX_CALL_MINUTES` | `10` | Hamdan wraps up politely a minute before the limit. |
+| `ALLOWED_EMBED_ORIGINS` | empty (any site) | Websites allowed to embed the widget. |
+| `CALLBACK_WEBHOOK_URL` | empty | Callback requests are POSTed here as JSON, with a ready-made `text` line for Teams or email flows. |
+| `ADMIN_TOKEN` | empty | Enables `/admin/callbacks?token=...`, a list of callback requests since the last restart. |
+| `PROACTIVE_AUDIO` | `false` | Lets the model ignore speech not addressed to it. Try it for very noisy places. |
 
-## Make it your own
+## How noise is handled
 
-To build a different business, swap three files and change two lines in `.env`. You don't need to touch `agent.py`, `bridge.py` or `server.py`.
+1. **In the browser:** the microphone's built-in echo cancellation and noise suppression, then **RNNoise**, a
+   neural noise filter (in `static/vendor/rnnoise`, MIT licence) that removes fans, traffic, keyboards and crowd hum.
+2. **Echo guard:** while Hamdan is speaking, quiet sound from the caller's side is muted, so his own voice coming out of
+   the speakers can't interrupt him. Clear speech from the caller still gets through, so they can always cut in.
+3. **On the server:** turn detection is set to ignore short noises, and only speech that lasts at least 200 ms starts a turn.
+4. **In the persona:** Hamdan ignores background conversations, asks the caller to repeat instead of guessing,
+   and offers the keyboard button if the line stays unclear.
 
-1. Write a persona, e.g. `app/persona/dentist.md`.
-2. Write a tools module. Type hints and the docstring become the schema the model sees:
+## Before going live
 
-```python
-# app/tools/clinic.py
-from typing import Literal
-from app.tools.registry import ToolError, tool
-
-@tool
-def book_appointment(patient: str, day: str, treatment: Literal["checkup", "cleaning", "whitening"]) -> dict:
-    """Book a dental appointment.
-
-    Args:
-        patient: Patient's full name.
-        day: ISO date, YYYY-MM-DD.
-        treatment: Type of visit.
-    """
-    if not patient.strip():
-        raise ToolError("I need the patient's name.")  # The agent says this out loud.
-    return {"confirmation": "DEN-1042", "day": day, "treatment": treatment}
-```
-
-3. Point `.env` at the new files:
-
-```
-PERSONA_FILE=app/persona/dentist.md
-TOOL_MODULES=app.tools.clinic,app.tools.call
-```
-
-- **Non-blocking tools:** use `@tool(blocking=False)` for slow lookups. The agent keeps talking and the result is announced when it pauses (`WHEN_IDLE`).
-- **Errors:** raise `ToolError` for anything the guest should hear. Any other exception becomes a polite generic error, so the model never sees a stack trace.
-
-**Longer calls.** Audio-only sessions are capped at about 15 minutes, and each connection lasts about 10 minutes. Uncomment `context_window_compression` and `session_resumption` in [config.py](app/config.py) to go beyond that.
-
-**Browser-direct.** This app is server-to-server, so the key never reaches the browser. If you want the browser to talk to Gemini directly, mint short-lived [ephemeral tokens](https://ai.google.dev/gemini-api/docs/ephemeral-tokens) on your server, and never ship the real key to the browser.
-
-## Troubleshooting
-
-- **No mic prompt or "Permission denied".** Browsers only allow the mic on `https://` or `http://localhost`. Check the site permission next to the URL bar. If you are on a remote machine, use `localhost` port-forwarding rather than the machine's IP.
-- **Chipmunk or slow-motion audio.** Gemini expects 16 kHz 16-bit mono PCM in and sends 24 kHz out. The capture worklet resamples from your device rate, and playback runs a 24 kHz `AudioContext`. If you change either side, keep those two rates.
-- **The agent keeps interrupting itself.** It is hearing its own voice through your speakers. Wear headphones, or tap the mic button to mute while the agent talks (muting sends silence, so turn-taking still works). Echo cancellation helps, but projectors and room speakers defeat it.
-- **It cuts people off mid-sentence.** Voice activity detection ends the turn after `silence_duration_ms` of silence. That is 700 ms here; keep it between 500 and 800 ms. Lower values chop up speech, and higher values feel sluggish.
-- **The room is too noisy.** Use the text box. Typed text goes into the same session.
-- **The session ends after about 10 minutes.** See "Longer calls" above.
+- **Use a paid Gemini key (or Vertex AI).** On the free tier Google may use conversations to improve its models.
+- **Send callbacks somewhere real.** Set `CALLBACK_WEBHOOK_URL`. On free hosting, saved files are wiped on every restart.
+- **Avoid the cold start.** Render's free plan sleeps after 15 minutes without visitors, and the first caller then waits about a minute. A paid instance avoids this.
+- **Get approval** from IT security and data protection, because callers' voices are processed by an external AI service.

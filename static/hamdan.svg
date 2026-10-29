@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="hamdan" role="img" aria-label="Hamdan, virtual assistant">
+  <defs>
+    <radialGradient id="h-bg" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#2E7C80"/>
+      <stop offset="1" stop-color="#0E4F55"/>
+    </radialGradient>
+    <linearGradient id="h-cloth" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E3E9EA"/>
+    </linearGradient>
+    <linearGradient id="h-skin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D9A27A"/>
+      <stop offset="1" stop-color="#C38862"/>
+    </linearGradient>
+    <clipPath id="h-clip"><circle cx="100" cy="100" r="100"/></clipPath>
+  </defs>
+  <g clip-path="url(#h-clip)">
+    <circle cx="100" cy="100" r="100" fill="url(#h-bg)"/>
+    <g class="h-body">
+      <!-- kandura -->
+      <path d="M22 210 C24 162 58 138 100 138 C142 138 176 162 178 210 Z" fill="url(#h-cloth)"/>
+      <path d="M100 150 L100 200" stroke="#D5DDDE" stroke-width="2"/>
+      <!-- ghutra falling behind the shoulders -->
+      <path d="M58 86 C54 54 74 36 100 36 C126 36 146 54 142 86 L156 176 C146 184 128 184 120 176 L116 128 L84 128 L80 176 C72 184 54 184 44 176 Z" fill="url(#h-cloth)"/>
+      <path d="M58 86 L44 176 C54 184 72 184 80 176 L84 128" fill="none" stroke="#D3DADB" stroke-width="2"/>
+      <path d="M142 86 L156 176 C146 184 128 184 120 176 L116 128" fill="none" stroke="#D3DADB" stroke-width="2"/>
+      <path d="M78 124 L122 124 L124 152 L76 152 Z" fill="#EEF2F2"/>
+      <!-- neck -->
+      <path d="M87 122 L87 143 C93 150 107 150 113 143 L113 122 Z" fill="#B97E58"/>
+      <!-- face -->
+      <ellipse cx="100" cy="100" rx="29" ry="34" fill="url(#h-skin)"/>
+      <!-- beard and moustache -->
+      <path d="M71.5 102 C72 126 86 136 100 136 C114 136 128 126 128.5 102 C126 118 117 129 100 129 C83 129 74 118 71.5 102 Z" fill="#3A2B23"/>
+      <path d="M93 128.5 Q100 134 107 128.5 Q100 126 93 128.5 Z" fill="#3A2B23"/>
+      <path d="M88 115 C92 111.5 97 111.5 100 113 C103 111.5 108 111.5 112 115 C108 114.5 104 115.5 100 116.5 C96 115.5 92 114.5 88 115 Z" fill="#3A2B23"/>
+      <!-- mouth: smile at rest, opens with the assistant's voice -->
+      <g class="h-mouth" transform="translate(100 120)">
+        <style>.h-open{transform:scaleY(var(--mouth,0));transform-box:fill-box;transform-origin:center}</style>
+        <path class="h-smile" d="M-7 -1 Q0 4.5 7 -1" fill="none" stroke="#7A3B30" stroke-width="2.2" stroke-linecap="round"/>
+        <ellipse class="h-open" cx="0" cy="1" rx="5.5" ry="3.6" fill="#5B2620"/>
+      </g>
+      <!-- cheeks, brows, eyes -->
+      <ellipse cx="80" cy="106" rx="5" ry="3" fill="#D98A70" opacity=".35"/>
+      <ellipse cx="120" cy="106" rx="5" ry="3" fill="#D98A70" opacity=".35"/>
+      <path d="M81 87 Q88 83.5 94 86.5" fill="none" stroke="#2A201B" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M106 86.5 Q112 83.5 119 87" fill="none" stroke="#2A201B" stroke-width="2.6" stroke-linecap="round"/>
+      <g class="h-eyes">
+        <ellipse cx="88" cy="96" rx="3.4" ry="4.2" fill="#1E1714"/>
+        <ellipse cx="112" cy="96" rx="3.4" ry="4.2" fill="#1E1714"/>
+        <circle cx="89.2" cy="94.6" r="1.1" fill="#fff"/>
+        <circle cx="113.2" cy="94.6" r="1.1" fill="#fff"/>
+      </g>
+      <path d="M100 99 Q98 106 101.5 107" fill="none" stroke="#A86E4C" stroke-width="1.6" stroke-linecap="round"/>
+      <!-- ghutra framing the forehead -->
+      <path d="M68 92 C66 62 82 52 100 52 C118 52 134 62 132 92 C127 78 116 71 100 71 C84 71 73 78 68 92 Z" fill="url(#h-cloth)"/>
+      <path d="M68 92 C73 78 84 71 100 71 C116 71 127 78 132 92" fill="none" stroke="#D3DADB" stroke-width="1.5"/>
+      <!-- agal -->
+      <path d="M62 60 Q100 74 138 60" fill="none" stroke="#1C1C1E" stroke-width="5" stroke-linecap="round"/>
+      <path d="M64 52.5 Q100 66 136 52.5" fill="none" stroke="#1C1C1E" stroke-width="4.5" stroke-linecap="round"/>
+      <!-- headset -->
+      <path d="M67 104 C66 116 72 124 84 125.5" fill="none" stroke="#33393B" stroke-width="2.4" stroke-linecap="round"/>
+      <rect x="82" y="123" width="7" height="4.5" rx="2.2" fill="#33393B"/>
+      <rect x="60" y="94" width="11" height="17" rx="5" fill="#33393B"/>
+      <rect x="62.5" y="97" width="6" height="11" rx="3" fill="#C79A3B"/>
+    </g>
+  </g>
+</svg>

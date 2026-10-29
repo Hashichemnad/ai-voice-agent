@@ -4,15 +4,16 @@ All answers come from app/data/ajmandof.json. Update that file when the website 
 no code changes are needed.
 """
 
+import asyncio
 import json
 import logging
 import random
 import re
-from datetime import datetime
+import urllib.request
 from pathlib import Path
 from typing import Literal
 
-from app.config import TIMEZONE
+from app.config import now, settings
 from app.store import store
 from app.tools.registry import ToolError, tool
 
@@ -106,8 +107,17 @@ def get_website_section(section: Section) -> dict:
     return {"section": section, "info": DOF["website_sections"][section]}
 
 
+def post_webhook(record: dict) -> None:
+    """Send a callback request to CALLBACK_WEBHOOK_URL as JSON (runs in a worker thread)."""
+    body = json.dumps({**record, "text": f"Callback request {record['reference']}: {record['name']}, "
+                       f"{record['phone']}, {record['topic']}"}, ensure_ascii=False).encode()
+    req = urllib.request.Request(settings.callback_webhook_url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        resp.read()
+
+
 @tool
-def request_callback(name: str, phone: str, topic: str) -> dict:
+async def request_callback(name: str, phone: str, topic: str) -> dict:
     """Log a callback from a Department of Finance employee. Only call this after reading back the name, phone and topic and the customer confirming.
 
     Args:
@@ -125,7 +135,12 @@ def request_callback(name: str, phone: str, topic: str) -> dict:
         "name": name.strip(),
         "phone": phone,
         "topic": topic,
-        "created": datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M"),
+        "created": now().strftime("%Y-%m-%d %H:%M"),
     })
     log.info("Callback requested: %s", ticket)
+    if settings.callback_webhook_url:
+        try:
+            await asyncio.to_thread(post_webhook, ticket)
+        except Exception:
+            log.exception("Could not send callback %s to the webhook", ticket["reference"])
     return {**ticket, "next_step": "An employee will call back during working hours: Monday to Thursday 7:30 AM to 3:30 PM, Friday 7:30 AM to 12 noon."}

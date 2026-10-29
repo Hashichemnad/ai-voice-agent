@@ -1,7 +1,7 @@
 [project]
-name = "saffron-palm"
-version = "0.1.0"
-description = "Bilingual hotel receptionist voice agent on the Gemini Live API (GDG DevFest Dubai workshop)"
+name = "ajmandof-voice-assistant"
+version = "1.0.0"
+description = "Bilingual voice assistant for the Ajman Department of Finance, on the Gemini Live API"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -11,14 +11,6 @@ dependencies = [
     "python-dotenv>=1.0",
     "tzdata>=2024.1",
 ]
-
-[dependency-groups]
-dev = ["pytest>=8", "pytest-asyncio>=0.24"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-pythonpath = ["."]
-testpaths = ["tests"]
 
 [tool.uv]
 package = false

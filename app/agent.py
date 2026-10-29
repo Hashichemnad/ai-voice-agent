@@ -1,10 +1,7 @@
-"""THE WORKSHOP FILE: one Live API session between a browser and Gemini.
-
-Everything the fenced block calls is a small helper:
-build_live_config (config.py), registry.run (tools/registry.py) and the bridge methods (bridge.py).
-"""
+"""One phone call: streams the caller's voice to Gemini Live and Gemini's voice, captions and tool calls back."""
 
 import asyncio
+import logging
 
 from google import genai
 
@@ -12,51 +9,31 @@ from app.bridge import BrowserBridge
 from app.config import build_live_config, settings
 from app.tools.registry import ToolRegistry
 
-client = genai.Client()  # Reads GEMINI_API_KEY, or the GOOGLE_CLOUD_* Vertex AI settings, from .env
+log = logging.getLogger(__name__)
+client = genai.Client()  # Reads GEMINI_API_KEY (or the GOOGLE_CLOUD_* Vertex AI settings).
+
+# Sent as the first message so the assistant greets the caller before they say anything.
+CALL_CONNECTED = "[CALL_CONNECTED] The caller has just been connected. Greet them now."
+WRAP_UP = "[SYSTEM] The call ends in one minute. Politely let the caller know and wrap up."
 
 
-'''
-LiveServerMessage:
-
-- msg.data: A slice of the agent's voice (24 kHz PCM) -> bridge.play()
-
-- server_content.output_transcription: Caption of what the agent is saying -> bridge.transcript()
-
-- server_content.input_transcription: Caption of what Gemini heard the guest say -> bridge.transcript()
-
-- server_content.interrupted: "The guest cut in, I stopped" -> bridge.interrupt()
-
-- server_content.turn_complete: "I've finished my turn" -> closes the caption bubble
-
-- tool_call: "Please run this function for me" -> registry.run()
-'''
-
-
-
-async def run_agent(bridge: BrowserBridge) -> None:
-    """Stream the guest's voice to Gemini and Gemini's voice, transcripts and tool calls back.
-    
-    Talk to Gemini:
-    - send_realtime_input(audio=… / text=…): Live streaming, as it happens
-    - send_tool_response(): Answering a tool call    
-    """
+async def run_agent(bridge: BrowserBridge, lang: str = "en") -> None:
     registry = ToolRegistry(settings.tool_modules, on_event=bridge.tool_event)
+    config = build_live_config(settings, registry, lang)
 
-    # === LIVE CODING START ===
-    async with client.aio.live.connect(model=settings.model, config=build_live_config(settings, registry)) as session:
+    async with client.aio.live.connect(model=settings.model, config=config) as session:
+        await bridge.send({"type": "ready"})
+        await session.send_realtime_input(text=CALL_CONNECTED)
+
         async def send_inputs():
-            #Send human audio to Gemini
             async for item in bridge.inputs():
                 await session.send_realtime_input(**item)
 
-
         async def answer(tool_call):
-            #Call the tool, then send the response to Gemini
             await session.send_tool_response(function_responses=await registry.run(tool_call))
 
         async def receive_replies():
-            #In a loop - receive messages from Gemini and take actions
-            while True:
+            while True:  # receive() ends after every turn
                 async for msg in session.receive():
                     await bridge.play(msg.data)
                     if msg.server_content and msg.server_content.interrupted:
@@ -65,8 +42,16 @@ async def run_agent(bridge: BrowserBridge) -> None:
                         tg.create_task(answer(msg.tool_call))  # keep audio flowing while tools run
                     await bridge.transcript(msg)
 
-        #Start the parallel tasks to listen to user and respond
+        async def time_limit():
+            limit = settings.max_call_minutes * 60
+            await asyncio.sleep(max(limit - 60, 0))
+            await session.send_realtime_input(text=WRAP_UP)
+            await asyncio.sleep(60)
+            await bridge.send({"type": "hangup"})  # the browser hangs up once the goodbye has played
+            await asyncio.sleep(20)
+            raise TimeoutError("Call time limit reached")
+
         async with asyncio.TaskGroup() as tg:
             tg.create_task(send_inputs())
             tg.create_task(receive_replies())
-    # === LIVE CODING END ===
+            tg.create_task(time_limit())

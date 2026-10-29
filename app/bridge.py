@@ -1,7 +1,7 @@
-"""BrowserBridge: the browser WebSocket as seen by the agent.
+"""The browser WebSocket, as seen by the agent.
 
-Browser -> server: binary frames are 16 kHz PCM16 mic audio, text frames are {"type": "text", "text": ...}.
-Server -> browser: binary frames are 24 kHz PCM16 audio, text frames are JSON events for the UI.
+Browser -> server: binary frames are 16 kHz PCM16 mic audio; text frames are {"type": "text", "text": ...}.
+Server -> browser: binary frames are 24 kHz PCM16 agent audio; text frames are JSON events for the UI.
 """
 
 import json
@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from fastapi import WebSocket, WebSocketDisconnect
 from google.genai import types
 
-from app.store import store
+MAX_TEXT = 500  # characters per typed message
 
 
 class BrowserBridge:
@@ -26,36 +26,38 @@ class BrowserBridge:
             if message.get("bytes"):
                 yield {"audio": types.Blob(data=message["bytes"], mime_type="audio/pcm;rate=16000")}
             elif message.get("text"):
-                yield {"text": json.loads(message["text"])["text"]}
+                try:
+                    text = str(json.loads(message["text"]).get("text", "")).strip()[:MAX_TEXT]
+                except (ValueError, AttributeError):
+                    continue
+                if text:
+                    yield {"text": text}
 
     async def play(self, audio: bytes | None) -> None:
-        """Send agent audio to the speakers."""
         if audio:
             await self.ws.send_bytes(audio)
 
     async def interrupt(self) -> None:
-        """The guest started talking: drop any queued agent audio right now."""
+        """The caller started talking: drop queued agent audio right away."""
         await self.send({"type": "interrupt"})
 
     async def transcript(self, msg: types.LiveServerMessage) -> None:
-        """Forward guest/agent transcription snippets and end-of-turn markers."""
+        """Forward caption snippets and end-of-turn markers."""
         content = msg.server_content
         if not content:
             return
         if content.input_transcription and content.input_transcription.text:
-            await self.send({"type": "transcript", "role": "guest", "text": content.input_transcription.text})
+            await self.send({"type": "transcript", "role": "user", "text": content.input_transcription.text})
         if content.output_transcription and content.output_transcription.text:
             await self.send({"type": "transcript", "role": "agent", "text": content.output_transcription.text})
         if content.turn_complete:
             await self.send({"type": "turn_complete"})
 
     async def tool_event(self, event: dict) -> None:
-        """Show a tool call on the Front Desk panel, refresh callbacks, and hang up after end_call."""
-        await self.send({"type": "tool", **event})
-        if event["phase"] == "end":
-            await self.send({"type": "callbacks", "callbacks": store.all("callbacks")})
-            if event["name"] == "end_call":
-                await self.send({"type": "hangup"})
+        """Tell the UI a lookup is running (name only: no caller data goes back to the browser)."""
+        await self.send({"type": "tool", "phase": event["phase"], "name": event["name"]})
+        if event["phase"] == "end" and event["name"] == "end_call":
+            await self.send({"type": "hangup"})
 
     async def send(self, event: dict) -> None:
         await self.ws.send_text(json.dumps(event, ensure_ascii=False, default=str))
